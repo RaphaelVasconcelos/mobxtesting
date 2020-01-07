@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:reviewapp/models/reviewmodel.dart';
+import 'package:reviewapp/models/reviews.dart';
+import 'package:reviewapp/widgets/review.dart';
 import '../widgets/info_card.dart';
-
 
 class Review extends StatefulWidget {
   @override
@@ -11,12 +13,14 @@ class Review extends StatefulWidget {
 }
 
 class ReviewState extends State<Review> {
-  final List<int> _stars = [1, 2, 3, 4, 5];
+  final Reviews _reviewsStore = Reviews();
   final TextEditingController _commentController = TextEditingController();
+  final List<int> _stars = [1, 2, 3, 4, 5];
   int _selectedStar;
-
   @override
   void initState() {
+    _selectedStar = null;
+    _reviewsStore.initReviews();
     super.initState();
   }
 
@@ -73,7 +77,24 @@ class ReviewState extends State<Review> {
                     builder: (BuildContext context) {
                       return IconButton(
                         icon: Icon(Icons.done),
-                        onPressed: () {},
+                        onPressed: () {
+                          if (_selectedStar == null) {
+                            Scaffold.of(context).showSnackBar(SnackBar(
+                              content:
+                                  Text("You can't add a review without star"),
+                              duration: Duration(milliseconds: 500),
+                            ));
+                          } else if (_commentController.text.isEmpty) {
+                            Scaffold.of(context).showSnackBar(SnackBar(
+                              content: Text("Review comment cannot be empty"),
+                              duration: Duration(milliseconds: 500),
+                            ));
+                          } else {
+                            _reviewsStore.addReview(ReviewModel(
+                                comment: _commentController.text,
+                                stars: _selectedStar));
+                          }
+                        },
                       );
                     },
                   ),
@@ -82,22 +103,26 @@ class ReviewState extends State<Review> {
             ),
             SizedBox(height: 12.0),
             //contains average stars and total reviews card
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-                InfoCard(
-                    infoValue: '2',
-                    infoLabel: "reviews",
-                    cardColor: Colors.green,
-                    iconData: Icons.comment),
-                InfoCard(
-                  infoValue: '2',
-                  infoLabel: "average stars",
-                  cardColor: Colors.lightBlue,
-                  iconData: Icons.star,
-                  key: Key('avgStar'),
-                ),
-              ],
+            Observer(
+              builder: (_) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: <Widget>[
+                    InfoCard(
+                        infoValue: _reviewsStore.numberOfReviews.toString(),
+                        infoLabel: "reviews",
+                        cardColor: Colors.green,
+                        iconData: Icons.comment),
+                    InfoCard(
+                      infoValue: _reviewsStore.averageStars.toStringAsFixed(2),
+                      infoLabel: "average stars",
+                      cardColor: Colors.lightBlue,
+                      iconData: Icons.star,
+                      key: Key('avgStar'),
+                    ),
+                  ],
+                );
+              },
             ),
             SizedBox(height: 24.0),
             //the review menu label
@@ -119,9 +144,20 @@ class ReviewState extends State<Review> {
             //contains list of reviews
             Expanded(
               child: Container(
-                child: Text("No reviews yet"),
+                child: Observer(
+                  builder: (_) => _reviewsStore.reviews.isNotEmpty
+                      ? ListView(
+                          children:
+                              _reviewsStore.reviews.reversed.map((reviewItem) {
+                            return ReviewWidget(
+                              reviewItem: reviewItem,
+                            );
+                          }).toList(),
+                        )
+                      : Text("No reviews yet"),
+                ),
               ),
-            ),
+            )
           ],
         ),
       ),
